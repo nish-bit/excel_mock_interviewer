@@ -13,4 +13,8 @@ openpyxl
 reportlab
 python-dotenv
 groq
+streamlit
+requests
+
+
 
