@@ -99,7 +99,7 @@ if 'interview_id' in st.session_state:
     idx = st.session_state.get('q_idx', 0)
 
     try:
-        r = requests.get(API + f'/questions/{idx}', timeout=10)
+        r = requests.get(API + f'/questions/{idx}', timeout=60)
         r.raise_for_status()
         q = r.json()
     except Exception as e:
@@ -198,5 +198,6 @@ if 'interview_id' in st.session_state:
             if key in st.session_state:
                 del st.session_state[key]
         st.rerun()
+
 
 
