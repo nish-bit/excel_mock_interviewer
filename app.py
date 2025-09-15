@@ -208,10 +208,51 @@ def final_report(interview_id: str):
     qa_list = [dict(r) for r in rows]
     avg_score = round(sum(r["score"] for r in qa_list) / len(qa_list), 2)
 
+    # ✅ Fixed syntax error in qa_text
     qa_text = "\n".join(
-        [f"Q: {r['questio]()]()
+        [
+            f"Q: {r['question']}\nYour Answer: {r['your_answer']}\nCorrect Answer: {r['correct_answer']}\nScore: {r['score']}\n"
+            for r in qa_list
+        ]
+    )
 
+    prompt = f"""
+You are an interview evaluator. Analyze the following Q&A session and give:
+1. A short summary of performance
+2. Candidate strengths
+3. Candidate weaknesses
 
+Q&A session:
+{qa_text}
 
+Return JSON only in this format:
+{{
+  "summary_text": "short summary",
+  "strengths": "list of strengths",
+  "weaknesses": "list of weaknesses"
+}}
+"""
 
+    summary = {"summary_text": "N/A", "strengths": "N/A", "weaknesses": "N/A"}
+    if GROQ_KEY:
+        try:
+            response = client.chat.completions.create(
+                model="llama-3.1-8b-instruct",
+                messages=[{"role": "user", "content": prompt}],
+                max_output_tokens=400,
+                temperature=0.2,
+            )
+            text = response.choices[0].message["content"].strip()
+            parsed = json.loads(re.search(r"\{.*\}", text, re.S).group(0))
+            summary = parsed
+        except Exception as e:
+            summary["error"] = str(e)
 
+    return {
+        "interview_id": interview_id,
+        "overall": avg_score,
+        "summary_text": summary.get("summary_text", "N/A"),
+        "strengths": summary.get("strengths", "N/A"),
+        "weaknesses": summary.get("weaknesses", "N/A"),
+        "questions": qa_list,
+    }
