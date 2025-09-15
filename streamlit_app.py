@@ -1,15 +1,15 @@
 import streamlit as st
 import requests
-import os
 import io
 from reportlab.lib.pagesizes import letter
 from reportlab.pdfgen import canvas
 
 st.set_page_config(page_title="Excel Mock Interviewer PoC", layout="centered")
 
-API = st.text_input("Backend URL", value="http://localhost:8000")
+# ✅ Use Render backend instead of localhost
+API = "https://excel-mock-interviewer-4.onrender.com"
 
-st.title("Excel Mock Interviewer — PoC")
+st.title("📝 Excel Mock Interviewer — PoC")
 
 
 # ✅ Function to generate PDF using ReportLab
@@ -198,3 +198,4 @@ if 'interview_id' in st.session_state:
             if key in st.session_state:
                 del st.session_state[key]
         st.rerun()
+
