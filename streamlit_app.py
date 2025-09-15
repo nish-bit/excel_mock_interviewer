@@ -11,7 +11,6 @@ API = "https://excel-mock-interviewer-4.onrender.com"
 
 st.title("📝 Excel Mock Interviewer — PoC")
 
-
 # ✅ Function to generate PDF using ReportLab
 def generate_pdf(report_data, interview_id):
     buffer = io.BytesIO()
@@ -81,7 +80,7 @@ if 'interview_id' not in st.session_state:
                     'college_name': college,
                     'course': course
                 }
-                r = requests.post(API + '/interviews', json=payload, timeout=10)
+                r = requests.post(API + '/interviews', json=payload, timeout=30)
                 if r.ok:
                     st.session_state['interview_id'] = r.json().get('interview_id')
                     st.session_state['q_idx'] = 0
@@ -130,7 +129,7 @@ if 'interview_id' in st.session_state:
                     'question_id': q['id'],
                     'response_text': ans
                 }
-                r = requests.post(API + '/responses', data=payload, timeout=10)
+                r = requests.post(API + '/responses', data=payload, timeout=30)
                 if r.ok:
                     res = r.json()
                     st.success(f"✅ Score: {res.get('score')}")
@@ -148,7 +147,7 @@ if 'interview_id' in st.session_state:
     if st.button("📥 Download Q&A Report"):
         try:
             report_resp = requests.get(
-                API + f'/final_report/{st.session_state["interview_id"]}', timeout=30
+                API + f'/final_report/{st.session_state["interview_id"]}', timeout=60
             )
             if report_resp.ok:
                 report_data = report_resp.json()
@@ -169,7 +168,7 @@ if 'interview_id' in st.session_state:
     if st.button("Finish Interview"):
         try:
             report_resp = requests.get(
-                API + f'/final_report/{st.session_state["interview_id"]}', timeout=30
+                API + f'/final_report/{st.session_state["interview_id"]}', timeout=60
             )
             if report_resp.ok:
                 report_data = report_resp.json()
@@ -198,6 +197,7 @@ if 'interview_id' in st.session_state:
             if key in st.session_state:
                 del st.session_state[key]
         st.rerun()
+
 
 
 
