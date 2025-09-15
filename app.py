@@ -32,13 +32,20 @@ class CreateInterview(BaseModel):
     course: str
 
 
-# ✅ Fixed startup import
+# ✅ Health check
+@app.get("/health")
+def health_check():
+    return {"status": "ok"}
+
+
+# ✅ DB initialization
 @app.on_event("startup")
 def startup():
-    import db_init   # absolute import, since db_init.py is in same folder
+    import db_init
     db_init.init_db()
 
 
+# ✅ Create interview
 @app.post("/interviews")
 def create_interview(payload: CreateInterview):
     conn = get_conn()
@@ -62,6 +69,7 @@ def create_interview(payload: CreateInterview):
     return {"interview_id": interview_id}
 
 
+# ✅ Get Question by index
 @app.get("/questions/{idx}")
 def get_question(idx: int):
     conn = get_conn()
@@ -72,14 +80,25 @@ def get_question(idx: int):
     )
     q = cur.fetchone()
     conn.close()
+
+    # Fallback: Static questions if DB is empty
     if not q:
-        raise HTTPException(status_code=404, detail="No question")
+        static_questions = [
+            {"id": 0, "text": "What is the difference between absolute and relative references in Excel?"},
+            {"id": 1, "text": "Write a formula to sum values in column B where column A equals 'India'."},
+            {"id": 2, "text": "How do you remove duplicate rows in Excel?"}
+        ]
+        if idx < len(static_questions):
+            return static_questions[idx]
+        return {"id": idx, "text": "No more questions."}
+
     return dict(q)
 
 
+# ✅ Rule-based evaluation
 def simple_rule_eval(question_row, response_text):
-    qtype = question_row["qtype"]
-    expected = question_row["expected_answer"] or ""
+    qtype = question_row.get("qtype", "explain")
+    expected = question_row.get("expected_answer") or ""
     score, details = 0.0, {}
 
     if qtype == "formula":
@@ -93,13 +112,14 @@ def simple_rule_eval(question_row, response_text):
             hit = sum(1 for f in funcs if f.lower() in response_text.lower())
             score = min(5.0, (hit / max(1, len(funcs))) * 4.0)
             details["func_hits"] = hit
-    elif qtype in ("explain", "task"):
+    else:
         score = 0.0
         details["note"] = "no rule-based score"
 
     return score, details
 
 
+# ✅ LLM evaluation
 def llm_score(question_text, expected_answer, candidate_answer):
     if not GROQ_KEY:
         return None, {"error": "no_groq_key"}
@@ -128,6 +148,7 @@ Return JSON only: {{"score": number, "rationale": "short explanation"}}
         return None, {"error": str(e)}
 
 
+# ✅ Submit response
 @app.post("/responses")
 def submit_response(
     interview_id: str = Form(...),
@@ -139,20 +160,17 @@ def submit_response(
 
     cur.execute("SELECT * FROM questions WHERE id=?", (question_id,))
     q = cur.fetchone()
-    if not q:
-        raise HTTPException(status_code=404, detail="Question not found")
-
-    qd = dict(q)
+    qd = dict(q) if q else {"id": question_id, "text": "N/A", "expected_answer": "", "qtype": "explain"}
 
     rule_score, rule_details = simple_rule_eval(qd, response_text)
     llm_score_val, llm_details = llm_score(
-        qd["text"], qd["expected_answer"] or "", response_text
+        qd.get("text", ""), qd.get("expected_answer", ""), response_text
     )
 
     if llm_score_val is None:
         final_score = rule_score if rule_score > 0 else 3.0
     else:
-        if qd["qtype"] == "formula":
+        if qd.get("qtype") == "formula":
             final_score = round((0.7 * rule_score + 0.3 * llm_score_val), 2)
         else:
             final_score = round(llm_score_val, 2)
@@ -179,10 +197,9 @@ def submit_response(
     return {"response_id": response_id, "score": final_score, "evaluator": evaluator}
 
 
-# ✅ Unified Endpoint: Final Report
+# ✅ Final report
 @app.get("/final_report/{interview_id}")
 def final_report(interview_id: str):
-    """Return both Q&A details and performance summary in one call."""
     conn = get_conn()
     cur = conn.cursor()
     cur.execute(
@@ -193,7 +210,7 @@ def final_report(interview_id: str):
                r.response_text as your_answer,
                r.score
         FROM responses r
-        JOIN questions q ON r.question_id = q.id
+        LEFT JOIN questions q ON r.question_id = q.id
         WHERE r.interview_id = ?
         ORDER BY r.created_at ASC
         """,
@@ -208,7 +225,6 @@ def final_report(interview_id: str):
     qa_list = [dict(r) for r in rows]
     avg_score = round(sum(r["score"] for r in qa_list) / len(qa_list), 2)
 
-    # ✅ Fixed syntax error in qa_text
     qa_text = "\n".join(
         [
             f"Q: {r['question']}\nYour Answer: {r['your_answer']}\nCorrect Answer: {r['correct_answer']}\nScore: {r['score']}\n"
