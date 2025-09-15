@@ -1,0 +1,26 @@
+AI-Powered Excel Mock Interviewer - PoC
+======================================
+
+Structure:
+- backend/app.py        -> FastAPI backend (sessions, questions, evaluation)
+- backend/db_init.py    -> Simple SQLite initialization (creates tables + seeds 20 questions)
+- frontend/streamlit_app.py -> Streamlit UI for candidate to take interview, upload spreadsheets, and download PDF report
+- requirements.txt      -> Python dependencies
+
+Notes:
+- LLM integration uses groqapi. Set environment variable groq_API_KEY before running the backend.
+  Example: export OPENAI_API_KEY=\"sk-...\" (Linux/Mac) or set in Windows env vars.
+
+Run locally:
+1) Start backend:
+   uvicorn backend.app:app --reload --port 8000
+2) Start frontend:
+   streamlit run frontend/streamlit_app.py --server.port 8501
+
+The PoC uses:
+- Rule-based checks for formula questions
+- GROQAPI scoring for explanation questions (if GROQ_API_KEY provided)
+- Spreadsheet upload evaluation (basic checks using pandas/openpyxl)
+- PDF report generation using ReportLab
+
+"""

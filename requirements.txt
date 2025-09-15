@@ -1,0 +1,14 @@
+fastapi
+uvicorn[standard]
+pydantic
+sqlalchemy
+databases
+aiofiles
+python-multipart
+streamlit
+requests
+openai
+pandas
+openpyxl
+reportlab
+python-dotenv
